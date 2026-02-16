@@ -1,0 +1,44 @@
+# Google credentials (NEVER commit these!)
+gsc-credentials.json
+*credentials*.json
+token.pickle
+client_secret*.json
+
+# Data files (contain sensitive URLs and results)
+GSC_Indexing_Report_MASTER.xlsx
+indexing_progress.json
+*.xlsx
+
+# Log files
+indexing_checker.log
+*.log
+run_log_*.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
