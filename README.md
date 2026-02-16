@@ -1,273 +1,260 @@
-# GSC Automated Indexing Checker
+# 🔍 GSC Automated Indexing Checker
 
-> Automatically audit every URL on your site for Google Search Console indexing issues. Runs daily, respects API quotas, saves progress, and produces a comprehensive Excel report.
+<div align="center">
 
----
+**Bulk-audit every URL on your site for Google Search Console indexing issues.**
 
-## What It Does
+Runs daily · Respects API quotas · Saves progress · Excel reports
 
-Google's URL Inspection API has a hard limit of **2,000 requests per day**. If your site has 10,000+ URLs, manually checking them all is impractical.
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue?logo=python&logoColor=white)](https://python.org)
+[![GSC API](https://img.shields.io/badge/API-Google%20Search%20Console-green?logo=google&logoColor=white)](https://developers.google.com/webmaster-tools)
+[![MIT License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](#)
 
-This script automates the process: it inspects up to 2,000 URLs each day, saves its progress, and picks up exactly where it left off the next day. When finished, you get a single Excel workbook with every URL's indexing status, broken down by issue type.
-
-### Issue Types Detected
-
-The script captures every status the URL Inspection API returns, mapped to the same labels you see in Search Console:
-
-**Healthy:** Indexed (Submitted and indexed), Indexed (Valid)
-
-**Content issues:** Crawled — currently not indexed, Discovered — currently not indexed, Duplicate (Google chose different canonical), Duplicate without user-selected canonical, Alternate page with proper canonical tag
-
-**Errors:** Not found (404), Soft 404, Server error (5xx), Access forbidden (403)
-
-**Blocked:** Blocked by robots.txt, Excluded by noindex tag, Page with redirect
-
-**Other:** URL unknown to Google, Submitted URL not found, and any other exclusion reason Google provides.
-
-### Per-URL Data Collected
-
-Each inspected URL produces a row with: issue type, verdict (PASS/FAIL/NEUTRAL), coverage state, indexing state, Google-selected canonical, user-declared canonical, canonical match flag, last crawl time, crawl agent (mobile/desktop), robots.txt state, page fetch state, sitemap presence, mobile usability verdict, and rich results status.
+</div>
 
 ---
 
-## How It Works
-
-```
-Day 1:  Fetch all URLs from Search Analytics → inspect first 2,000 → save to Excel + progress file
-Day 2:  Load progress → inspect URLs 2,001–4,000 → update Excel
-Day 3:  Load progress → inspect URLs 4,001–6,000 → update Excel
-Day 4:  Load progress → inspect remaining URLs → mark complete
-```
-
-Each run takes roughly 20–30 minutes (0.5 s delay between requests × 2,000 URLs). Schedule it at 9 AM and forget about it.
-
----
-
-## Requirements
-
-- **Python 3.7+**
-- A **Google Cloud project** with the Search Console API enabled
-- A **Service Account** with Owner permission in your GSC property
-
-### Python Dependencies
-
-```
-google-api-python-client >= 2.0.0
-google-auth >= 2.0.0
-google-auth-oauthlib >= 0.5.0
-google-auth-httplib2 >= 0.1.0
-pandas >= 1.3.0
-openpyxl >= 3.0.9
-xlsxwriter >= 3.0.0
-```
-
-Optional (Windows desktop notifications):
-```
-win10toast >= 0.9
-```
-
----
-
-## Setup
-
-### 1. Clone the Repository
+## ⚡ Quick Start
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/gsc-indexing-checker.git
 cd gsc-indexing-checker
+pip install -r requirements.txt
 ```
 
-### 2. Install Dependencies
+1. Add your `gsc-credentials.json` → [How to get it](#-google-service-account)
+2. Edit `SITE_URL` in `gsc_auto_indexing_checker.py`
+3. Run: `python gsc_auto_indexing_checker.py`
+4. Schedule daily → sit back → open Excel when done
+
+---
+
+## 💡 Why This Exists
+
+Google's URL Inspection API allows **2,000 requests/day**. If your site has 10k+ URLs, checking them manually is impossible.
+
+This script handles it for you:
+
+```
+Day 1 → Fetch all URLs → Inspect first 2,000 → Save progress
+Day 2 → Resume from 2,001 → Inspect next 2,000 → Update Excel
+Day 3 → Resume from 4,001 → Inspect next 2,000 → Update Excel
+Day 4 → Finish remaining → ✅ Complete report ready
+```
+
+> 💡 Each run takes ~20–30 min. Schedule it at 9 AM and forget about it.
+
+---
+
+## 📊 What You Get
+
+### Excel Report (`GSC_Indexing_Report_MASTER.xlsx`)
+
+| Sheet | What's Inside |
+|:------|:-------------|
+| 📋 **Summary** | Progress %, URLs checked/remaining, status, error count |
+| 📄 **All URLs** | Every URL with full indexing details (15+ fields) |
+| 📈 **Issue Summary** | Issue counts sorted by frequency |
+| 🔍 **Per-Issue Sheets** | Filtered views for top 10 issue types |
+| ⚠️ **Errors** | Any URLs that failed during inspection |
+
+### Per-URL Data Collected
+
+| Field | Field | Field |
+|:------|:------|:------|
+| Issue type | Verdict (PASS/FAIL) | Coverage state |
+| Google canonical | User canonical | Canonical match |
+| Last crawl time | Crawl agent | Robots.txt state |
+| Page fetch state | Sitemap presence | Mobile usability |
+| Rich results | Indexing state | Check timestamp |
+
+---
+
+## 🎯 Issues Detected
+
+| Category | Issues |
+|:---------|:-------|
+| ✅ **Healthy** | Indexed (Submitted), Indexed (Valid) |
+| 🟡 **Content** | Crawled not indexed, Discovered not indexed, Duplicate canonical conflicts |
+| 🔴 **Errors** | 404, Soft 404, 5xx Server errors, 403 Forbidden |
+| 🚫 **Blocked** | robots.txt, noindex, Redirects |
+| ❓ **Other** | URL unknown to Google, Alternate with canonical, etc. |
+
+---
+
+## 🛠️ Setup
+
+### Prerequisites
+
+| Requirement | Details |
+|:------------|:--------|
+| Python | 3.7 or higher |
+| Google Cloud | Project with Search Console API enabled |
+| GSC Access | Service Account with **Owner** permission |
+
+### 📦 Install
 
 ```bash
 pip install -r requirements.txt
 
-# Optional: Windows notifications
+# Optional — Windows desktop notifications
 pip install win10toast
 ```
 
-### 3. Create a Google Service Account
+### 🔑 Google Service Account
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a project (or select an existing one)
-3. **Enable the Google Search Console API** (APIs & Services → Library → search "Search Console API")
-4. **Create a Service Account** (IAM & Admin → Service Accounts → Create)
-5. **Generate a JSON key** (click the account → Keys tab → Add Key → JSON)
-6. Save the downloaded file as `gsc-credentials.json` in the project folder
+| Step | Action |
+|:-----|:-------|
+| 1 | Go to [Google Cloud Console](https://console.cloud.google.com/) → Create project |
+| 2 | APIs & Services → Library → Enable **Google Search Console API** |
+| 3 | IAM & Admin → Service Accounts → **Create Service Account** |
+| 4 | Click account → Keys → **Add Key** → JSON → Download |
+| 5 | Save as `gsc-credentials.json` in project folder |
 
-### 4. Grant Access in Search Console
+### 🔗 Grant Access in GSC
 
-1. Open the JSON file and copy the `client_email` value (looks like `name@project.iam.gserviceaccount.com`)
-2. Go to [Google Search Console](https://search.google.com/search-console) → your property → Settings → Users and permissions
-3. Click **Add user**, paste the service account email, set permission to **Owner**
+| Step | Action |
+|:-----|:-------|
+| 1 | Open your JSON → copy the `client_email` value |
+| 2 | [Search Console](https://search.google.com/search-console) → Settings → Users and permissions |
+| 3 | **Add user** → paste email → set **Owner** permission |
 
-> **Owner permission is required** for the URL Inspection API. Viewer/Full access is not enough.
+> ⚠️ **Owner is required** for the URL Inspection API. Viewer/Full won't work.
 
-### 5. Configure the Script
+### ⚙️ Configure
 
-Open `gsc_auto_indexing_checker.py` and edit line 32:
+Edit `gsc_auto_indexing_checker.py`:
 
 ```python
-SITE_URL = 'https://www.yoursite.com/'  # Must match your GSC property exactly
+SITE_URL = 'https://www.yoursite.com/'   # ← Must match GSC property exactly
 ```
 
-Include the protocol (`https://`) and trailing slash. This must match your property URL in Search Console exactly.
-
-### 6. Test
-
-```bash
-python gsc_auto_indexing_checker.py
-```
-
-You should see URLs being fetched and inspected. After the run, three files appear:
-
-| File | Purpose |
-|------|---------|
-| `GSC_Indexing_Report_MASTER.xlsx` | Your main report (updated daily) |
-| `indexing_progress.json` | Tracks which URLs have been checked — **do not delete mid-scan** |
-| `indexing_checker.log` | Timestamped log of every run |
+> Include `https://` and trailing `/`
 
 ---
 
-## Scheduling
+## 📅 Scheduling
 
-### Windows (Task Scheduler)
+### Windows → Task Scheduler
 
-1. Open Task Scheduler (`Win+R` → `taskschd.msc`)
-2. Create Task (not "Basic Task")
-3. **Trigger:** Daily at 9:00 AM
-4. **Action:** Start a program → browse to `run_daily_checker.bat`; set "Start in" to your project folder
-5. **Settings:** check "Run task as soon as possible after a scheduled start is missed"
+| Setting | Value |
+|:--------|:------|
+| Trigger | Daily at 9:00 AM |
+| Action | Start program → `run_daily_checker.bat` |
+| Start in | Your project folder path |
+| Setting | ✅ Run task ASAP after missed start |
 
-### Linux / macOS (cron)
+### Linux / macOS → cron
 
 ```bash
-crontab -e
-
-# Add this line (adjust paths):
 0 9 * * * cd /path/to/gsc-indexing-checker && python3 gsc_auto_indexing_checker.py >> cron.log 2>&1
 ```
 
 ---
 
-## Output: Excel Report
+## ⚙️ Configuration
 
-The report (`GSC_Indexing_Report_MASTER.xlsx`) contains these sheets:
+All settings at the top of `gsc_auto_indexing_checker.py`:
 
-| Sheet | Contents |
-|-------|----------|
-| **Summary** | Total URLs, checked count, remaining, progress %, status, error count |
-| **All URLs** | Every inspected URL with all fields (issue type, verdict, canonicals, crawl info…) |
-| **Issue Summary** | Count per issue type, sorted by frequency |
-| **Per-issue sheets** | One sheet for each of the top 10 issue types (e.g. "Crawled - currently not i", "Not found (404)") — filtered for easy analysis |
-| **Errors** | Any URLs that returned API errors during inspection |
+| Variable | Default | Description |
+|:---------|:--------|:-----------|
+| `SITE_URL` | `https://www.example.com/` | Your GSC property URL |
+| `DAILY_QUOTA` | `2000` | URLs per day (Google's limit) |
+| `REQUEST_DELAY` | `0.5` | Seconds between requests |
+| `OUTPUT_EXCEL` | `GSC_Indexing_Report_MASTER.xlsx` | Report filename |
+| `PROGRESS_FILE` | `indexing_progress.json` | Progress tracker |
+| `LOG_FILE` | `indexing_checker.log` | Execution log |
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 gsc-indexing-checker/
-├── gsc_auto_indexing_checker.py   # Main script
-├── emergency_recover.py           # Crash recovery tool
-├── run_daily_checker.bat          # Windows batch runner
-├── requirements.txt               # Python dependencies
-├── gsc-credentials.json.example   # Template for credentials
-├── LICENSE                        # MIT License
-├── .gitignore                     # Keeps secrets out of Git
-└── README.md                      # This file
+├── gsc_auto_indexing_checker.py    ← Main script
+├── emergency_recover.py            ← Crash recovery tool
+├── run_daily_checker.bat           ← Windows batch runner
+├── requirements.txt                ← Python dependencies
+├── gsc-credentials.json.example    ← Credentials template
+├── .gitignore                      ← Keeps secrets out of Git
+├── LICENSE                         ← MIT
+└── README.md
 ```
 
-**Generated at runtime (git-ignored):**
+**Auto-generated at runtime** (git-ignored):
 
 ```
-├── GSC_Indexing_Report_MASTER.xlsx   # Excel report
-├── indexing_progress.json            # Progress state
-├── indexing_checker.log              # Execution log
-└── run_log_*.txt                     # Batch runner logs (Windows)
+├── GSC_Indexing_Report_MASTER.xlsx ← 📊 Your report
+├── indexing_progress.json          ← 💾 Progress state
+├── indexing_checker.log            ← 📝 Execution log
+└── run_log_*.txt                   ← 📝 Batch logs (Windows)
 ```
 
 ---
 
-## Configuration
+## ⏱️ Timeline
 
-All settings are at the top of `gsc_auto_indexing_checker.py`:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SERVICE_ACCOUNT_FILE` | `gsc-credentials.json` | Path to your Google service account key |
-| `SITE_URL` | `https://www.example.com/` | Your GSC property URL (must match exactly) |
-| `DAILY_QUOTA` | `2000` | Max URLs to inspect per day (Google's limit) |
-| `REQUEST_DELAY` | `0.5` | Seconds between API calls (avoid rate limiting) |
-| `OUTPUT_EXCEL` | `GSC_Indexing_Report_MASTER.xlsx` | Report filename |
-| `PROGRESS_FILE` | `indexing_progress.json` | Progress state filename |
-| `LOG_FILE` | `indexing_checker.log` | Log filename |
+| Site Size | Days to Complete |
+|:----------|:-----------------|
+| 2,000 URLs | 1 day |
+| 8,000 URLs | 4 days |
+| 20,000 URLs | 10 days |
+| 50,000 URLs | 25 days |
+| 100,000+ URLs | 50+ days |
 
 ---
 
-## Constraints & Limitations
+## 🚨 Constraints
 
-- **2,000 URLs/day** — this is a hard limit imposed by Google's URL Inspection API. A 10,000-URL site takes 5 days; a 100,000-URL site takes ~50 days.
-- **Quota resets at midnight Pacific Time.**
-- **Read-only** — the script never modifies anything in your GSC account. It only reads data.
-- The script fetches URLs from **Search Analytics**, which means it only finds URLs that have received at least one impression. Orphan pages with zero impressions won't appear.
-- The `win10toast` notification library is optional and Windows-only. The script works fine without it.
-- If the `indexing_progress.json` file is deleted mid-scan, the script starts over from scratch.
+| Constraint | Detail |
+|:-----------|:-------|
+| **2,000 URLs/day** | Hard limit by Google's URL Inspection API |
+| **Quota resets** | Midnight Pacific Time |
+| **Read-only** | Never modifies your GSC account |
+| **Search Analytics only** | Orphan pages with 0 impressions won't appear |
+| **Progress file** | Deleting `indexing_progress.json` mid-scan = restart from scratch |
 
 ---
 
-## Emergency Recovery
+## 🆘 Emergency Recovery
 
-If the script crashes mid-batch (power outage, network failure, 429 quota error) and fails to save progress:
+Script crashed mid-run? Progress not saved?
 
 ```bash
 python emergency_recover.py
 ```
 
-This parses the log file to identify which URLs were successfully inspected, removes error rows from the Excel report, and updates the progress file so the next run continues from the correct position.
+→ Parses log → finds checked URLs → fixes Excel → updates progress → next run continues normally.
 
 ---
 
-## Troubleshooting
+## 🔧 Troubleshooting
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| "Permission denied" or 403 | Service account lacks Owner permission in GSC | Add the service account email as Owner in Search Console → Settings → Users |
-| "Invalid credentials" | Missing or malformed JSON key | Re-download the key from Google Cloud Console |
-| "Quota exceeded" / 429 | Already used 2,000 inspections today | Wait until midnight PT; the script will resume tomorrow |
-| No Windows notifications | `win10toast` not installed | `pip install win10toast` (optional — doesn't affect core functionality) |
-| Script appears stuck | Large site + slow connection | Check the log file for progress; each URL takes ~0.5 s |
-| Want to restart from scratch | — | Delete `indexing_progress.json` and run again |
-| Crash mid-run | Network issue, PC sleep, etc. | Run `python emergency_recover.py`, then run the main script again |
-
----
-
-## Typical Timeline
-
-| Site Size | Days to Complete |
-|-----------|-----------------|
-| 2,000 URLs | 1 day |
-| 8,000 URLs | 4 days |
-| 20,000 URLs | 10 days |
-| 50,000 URLs | 25 days |
-| 100,000 URLs | 50 days |
+| Problem | Solution |
+|:--------|:---------|
+| `Permission denied` / 403 | Add service account as **Owner** in GSC → Settings → Users |
+| `Invalid credentials` | Re-download JSON key from Cloud Console |
+| `Quota exceeded` / 429 | Wait until midnight PT — resumes automatically tomorrow |
+| No notifications | `pip install win10toast` (optional, Windows only) |
+| Script seems stuck | Check log file — each URL takes ~0.5s |
+| Want fresh start | Delete `indexing_progress.json` → run again |
+| Crash mid-run | Run `emergency_recover.py` → then run main script |
 
 ---
 
-## Security Notes
+## 🔒 Security
 
-- **Never commit `gsc-credentials.json`** — it's already in `.gitignore`.
-- The service account only needs read access (the `webmasters.readonly` scope).
-- You can revoke access at any time from Search Console → Settings → Users.
-
----
-
-## Contributing
-
-Contributions are welcome. Open an issue or submit a pull request.
+- **Never commit** `gsc-credentials.json` — already in `.gitignore`
+- Script uses **read-only** scope (`webmasters.readonly`)
+- Revoke access anytime: GSC → Settings → Users → Remove
 
 ---
 
-## License
+## 🤝 Contributing
+
+Contributions welcome — open an issue or submit a PR.
+
+## 📄 License
 
 [MIT](LICENSE)
